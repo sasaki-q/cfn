@@ -1,0 +1,46 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Example template including Cognito Identity Pool and User Pool."
+
+Resources:
+  UserPool:
+    Type: "AWS::Cognito::UserPool"
+    Properties:
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+      UserPoolName: 
+        Ref: AWS::StackName
+      Schema:
+        - AttributeDataType: "String"
+          Name: "email"
+          Mutable: false
+          Required: true
+          DeveloperOnlyAttribute: false
+          StringAttributeConstraints:
+            MaxLength: "2048"
+            MinLength: "0"
+        - AttributeDataType: "String"
+          Name: "custom:test"
+          Mutable: false
+          Required: false
+          DeveloperOnlyAttribute: false
+          StringAttributeConstraints:
+            MaxLength: "2048"
+            MinLength: "0"
+      MfaConfiguration: 'OFF'
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+        UnusedAccountValidityDays: 7
+
+  UserPoolClient:
+    Type: "AWS::Cognito::UserPoolClient"
+    Properties:
+      UserPoolId:
+        Ref: UserPool
+      ClientName:
+        Ref: AWS::StackName
+      RefreshTokenValidity: 30
