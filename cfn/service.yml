@@ -1,0 +1,18 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Resources:
+  FargateService:
+    Type: AWS::ECS::Service
+    Properties:
+      ServiceName: ecs-cfn-service
+      Cluster: !Ref ClusterArn
+      LaunchType: FARGATE
+      DesiredCount: 1
+      TaskDefinition: !Ref TaskArn
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref SG
+          Subnets:
+            - !Ref Subnet

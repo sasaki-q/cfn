@@ -1,0 +1,87 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Resources:
+  EcsCfnCodeBuild:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: ecs-cfn-code-build
+      Description: "ecs cfn code build"
+      ServiceRole: !Ref BuildRole
+      Source:
+        Type: GITHUB
+        Location: !Ref GitHubLocation
+      Environment:
+        PrivilegedMode: true
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: "aws/codebuild/standard:4.0"
+        EnvironmentVariables:
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref Region
+          - Name: AWS_ACCOUNT_ID
+            Value: !Ref AccountId
+          - Name: REPOSITORY_NAME
+            Value: !Ref RepositoryName
+          - Name: REPOSITORY_URI
+            Value: !Ref RepositoryUri
+          - Name: CONTAINER_NAME
+            Value: !Ref ContainerName
+      Artifacts:
+        Type: NO_ARTIFACTS
+
+  EcsCfnCodePipeline:
+    Type: AWS::CodePipeline::Pipeline
+    DependsOn:
+      - EcsCfnCodeBuild
+    Properties:
+      Name: ecs-cfn-code-pipeline
+      ArtifactStore:
+        Type: S3
+        Location: !Ref S3Location
+      RoleArn: !Ref PipelineRole
+      Stages:
+        - Name: Source
+          Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeStarSourceConnection
+                Version: 1
+              Name: Source
+              Configuration:
+                BranchName: master
+                ConnectionArn: !Ref CodeStarRole  
+                FullRepositoryId: sasaki-q/ecs-cfn-app
+              OutputArtifacts:
+                - Name: SourceCode
+              RunOrder: 1
+        - Name: Build
+          Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: 1
+              Name: Build
+              Configuration:
+                ProjectName: !Ref EcsCfnCodeBuild
+              InputArtifacts:
+                - Name: SourceCode
+              OutputArtifacts:
+                - Name: BuildArtifact
+              RunOrder: 1
+        - Name: Deploy
+          Actions:
+            - Name: Deploy
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: ECS
+              Configuration:
+                ClusterName: !Ref Cluster
+                ServiceName: !Ref Service
+                FileName: imagedefinitions.json
+              InputArtifacts:
+                - Name: BuildArtifact
+              RunOrder: 1
