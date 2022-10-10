@@ -1,6 +1,4 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: 
-  create vpc
 
 Parameters:
   Prefix:
@@ -9,11 +7,15 @@ Parameters:
 
   VPCCIDR:
     Type: String
-    Default: "10.1.0.0/16"
+    Default: "10.0.0.0/16"
 
-  PublicSubnetCIDR:
+  PublicSubnetACIDR:
     Type: String
-    Default: "10.1.10.0/24"
+    Default: "10.0.10.0/24"
+
+  PublicSubnetBCIDR:
+    Type: String
+    Default: "10.0.20.0/24"
 
 
 Resources:
@@ -28,6 +30,23 @@ Resources:
         - Key: Name
           Value: !Sub "${Prefix}-vpc"
 
+  SG: 
+    Type: AWS::EC2::SecurityGroup  
+    Properties: 
+      GroupName: test-cfn-sg
+      GroupDescription: test-cfn-sg
+      SecurityGroupEgress: 
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      SecurityGroupIngress: 
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      VpcId: !Ref VPC
+
   InternetGateway: 
     Type: "AWS::EC2::InternetGateway"
     Properties: 
@@ -41,12 +60,70 @@ Resources:
       InternetGatewayId: !Ref InternetGateway
       VpcId: !Ref VPC 
 
-  PublicSubnet: 
+  PublicSubnetA: 
     Type: "AWS::EC2::Subnet"
     Properties: 
       AvailabilityZone: "ap-northeast-1a"
-      CidrBlock: !Ref PublicSubnetCIDR
+      CidrBlock: !Ref PublicSubnetACIDR
       VpcId: !Ref VPC 
       Tags: 
         - Key: Name
           Value: !Sub "${Prefix}-public-subnet-a"
+    
+  PublicSubnetB: 
+    Type: "AWS::EC2::Subnet"
+    Properties: 
+      AvailabilityZone: "ap-northeast-1c"
+      CidrBlock: !Ref PublicSubnetBCIDR
+      VpcId: !Ref VPC 
+      Tags: 
+        - Key: Name
+          Value: !Sub "${Prefix}-public-subnet-b"
+
+  ALB: 
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties: 
+      Name: cfn-test-alb
+      SecurityGroups: 
+        - !Ref SG
+      Subnets: 
+        - !Ref PublicSubnetA
+        - !Ref PublicSubnetB
+
+  ALBTargetGrop1:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties: 
+      Name: cfn-test-ALB-1
+      Port: 80
+      Protocol: HTTP
+      TargetType: ip
+      VpcId: !Ref VPC 
+
+  ALBTargetGrop2:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties: 
+      Name: cfn-test-ALB-2
+      Port: 80
+      Protocol: HTTP
+      TargetType: ip
+      VpcId: !Ref VPC 
+
+  ALBListner1: 
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties: 
+      DefaultActions: 
+        - TargetGroupArn: !Ref ALBTargetGrop1
+          Type: forward
+      LoadBalancerArn: !Ref ALB
+      Port: 80
+      Protocol: HTTP
+
+  ALBListner2: 
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties: 
+      DefaultActions: 
+        - TargetGroupArn: !Ref ALBTargetGrop2
+          Type: forward
+      LoadBalancerArn: !Ref ALB
+      Port: 8080
+      Protocol: HTTP
