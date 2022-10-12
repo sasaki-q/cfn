@@ -8,8 +8,7 @@ Resources:
       Description: "ecs cfn code build"
       ServiceRole: !Ref BuildRole
       Source:
-        Type: GITHUB
-        Location: !Ref GitHubLocation
+        Type: CODEPIPELINE
       Environment:
         PrivilegedMode: true
         Type: LINUX_CONTAINER
@@ -19,7 +18,7 @@ Resources:
           - Name: AWS_DEFAULT_REGION
             Value: !Ref Region
           - Name: AWS_ACCOUNT_ID
-            Value: !Ref AccountId
+            Value: !Sub ${AWS::AccountId}
           - Name: REPOSITORY_NAME
             Value: !Ref RepositoryName
           - Name: REPOSITORY_URI
@@ -27,7 +26,7 @@ Resources:
           - Name: CONTAINER_NAME
             Value: !Ref ContainerName
       Artifacts:
-        Type: NO_ARTIFACTS
+        Type: CODEPIPELINE
 
   EcsCfnCodePipeline:
     Type: AWS::CodePipeline::Pipeline
@@ -68,20 +67,24 @@ Resources:
               InputArtifacts:
                 - Name: SourceCode
               OutputArtifacts:
-                - Name: BuildArtifact
+                - Name: BuildOutput
               RunOrder: 1
         - Name: Deploy
           Actions:
-            - Name: Deploy
-              ActionTypeId:
+            - ActionTypeId:
                 Category: Deploy
                 Owner: AWS
+                Provider: CodeDeployToECS
                 Version: 1
-                Provider: ECS
+              Name: Deploy
               Configuration:
-                ClusterName: !Ref Cluster
-                ServiceName: !Ref Service
-                FileName: imagedefinitions.json
+                ApplicationName: !Ref EcsCfnCodeDeploy
+                DeploymentGroupName: !Ref EcsCfnCodeDeployGroup
+                Image1ArtifactName: BuildOutput
+                Image1ContainerName: IMAGE1_NAME
+                TaskDefinitionTemplateArtifact: SourceCode
+                AppSpecTemplateArtifact: SourceCode
               InputArtifacts:
-                - Name: BuildArtifact
+                - Name: SourceCode
+                - Name: BuildOutput
               RunOrder: 1
