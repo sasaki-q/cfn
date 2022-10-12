@@ -1,0 +1,49 @@
+{
+    "applicationName": "test-ecs-cfn-code-deploy",
+    "deploymentGroupName": "test-ecs-cfn-deploy-group",
+    "serviceRoleArn": "arn:aws:iam::{ID}:role/ServiceRoleForCodeDeploy",
+    "deploymentStyle": {
+      "deploymentType": "BLUE_GREEN",
+      "deploymentOption": "WITH_TRAFFIC_CONTROL"
+    },
+    "blueGreenDeploymentConfiguration": {
+      "terminateBlueInstancesOnDeploymentSuccess": {
+        "action": "TERMINATE",
+        "terminationWaitTimeInMinutes": 30
+      },
+      "deploymentReadyOption": {
+        "actionOnTimeout": "CONTINUE_DEPLOYMENT",
+        "waitTimeInMinutes": 0
+      }
+    },
+    "loadBalancerInfo": {
+      "targetGroupPairInfoList": [
+        {
+          "targetGroups": [
+            {
+              "name": "cfn-test-ALB-1"
+            },
+            {
+              "name": "cfn-test-ALB-2"
+            }
+          ],
+          "prodTrafficRoute": {
+            "listenerArns": [
+              ""
+            ]
+          },
+          "testTrafficRoute": {
+            "listenerArns": [
+              ""
+            ]
+          }
+        }
+      ]
+    },
+    "ecsServices": [
+      {
+        "serviceName": "cfn-test-service",
+        "clusterName": "cfn-test-cluster"
+      }
+    ]
+  }
