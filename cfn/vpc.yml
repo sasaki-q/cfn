@@ -17,18 +17,78 @@ Parameters:
     Type: String
     Default: "10.0.20.0/24"
 
-
 Resources:
   VPC: 
-    Type: "AWS::EC2::VPC"
+    Type: AWS::EC2::VPC
     Properties: 
       CidrBlock: !Ref VPCCIDR
-      EnableDnsSupport: "true"
-      EnableDnsHostnames: "true"
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
       InstanceTenancy: default
       Tags: 
         - Key: Name
-          Value: !Sub "${Prefix}-vpc"
+          Value: !Sub ${Prefix}-vpc
+
+  InternetGateway: 
+    Type: AWS::EC2::InternetGateway
+    Properties: 
+      Tags: 
+        - Key: Name
+          Value: !Sub "${Prefix}-igw"
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  PublicSubnetA: 
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AvailabilityZone: ap-northeast-1a
+      CidrBlock: !Ref PublicSubnetACIDR
+      VpcId: !Ref VPC 
+      Tags: 
+        - Key: Name
+          Value: !Sub ${Prefix}-public-subnet-a
+    
+  PublicSubnetB: 
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AvailabilityZone: ap-northeast-1c
+      CidrBlock: !Ref PublicSubnetBCIDR
+      VpcId: !Ref VPC 
+      Tags: 
+        - Key: Name
+          Value: !Sub ${Prefix}-public-subnet-b
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${Prefix} Public Routes
+
+  DefaultPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnetA
+
+  PublicSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnetB
 
   SG: 
     Type: AWS::EC2::SecurityGroup  
@@ -40,45 +100,28 @@ Resources:
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: 0.0.0.0/0
       SecurityGroupIngress: 
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: 0.0.0.0/0
       VpcId: !Ref VPC
-
-  InternetGateway: 
-    Type: "AWS::EC2::InternetGateway"
-    Properties: 
-      Tags: 
-        - Key: Name
-          Value: !Sub "${Prefix}-igw"
-
-  InternetGatewayAttachment: 
-    Type: "AWS::EC2::VPCGatewayAttachment"
-    Properties: 
-      InternetGatewayId: !Ref InternetGateway
-      VpcId: !Ref VPC 
-
-  PublicSubnetA: 
-    Type: "AWS::EC2::Subnet"
-    Properties: 
-      AvailabilityZone: "ap-northeast-1a"
-      CidrBlock: !Ref PublicSubnetACIDR
-      VpcId: !Ref VPC 
-      Tags: 
-        - Key: Name
-          Value: !Sub "${Prefix}-public-subnet-a"
-    
-  PublicSubnetB: 
-    Type: "AWS::EC2::Subnet"
-    Properties: 
-      AvailabilityZone: "ap-northeast-1c"
-      CidrBlock: !Ref PublicSubnetBCIDR
-      VpcId: !Ref VPC 
-      Tags: 
-        - Key: Name
-          Value: !Sub "${Prefix}-public-subnet-b"
 
   ALB: 
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
@@ -127,3 +170,31 @@ Resources:
       LoadBalancerArn: !Ref ALB
       Port: 8080
       Protocol: HTTP
+
+Outputs:
+  TargetGroupArn1:
+    Description: ALB Target Group Arn 1
+    Value: !Ref ALBTargetGrop1
+    Export:
+      Name: TargetGroup1Arn
+  TargetGroupArn2:
+    Description: ALB Target Group Arn 2
+    Value: !Ref ALBTargetGrop2
+    Export:
+      Name: TargetGroup2Arn
+  SG:
+    Description: sg
+    Value: !Ref ALBTargetGrop2
+    Export:
+      Name: SGArn
+  Subnet1:
+    Description: PublicSubnetA
+    Value: !Ref PublicSubnetA
+    Export:
+      Name: Subnet1Arn
+  Subnet2:
+    Description: PublicSubnetB
+    Value: !Ref PublicSubnetB
+    Export:
+      Name: Subnet2Arn
+  
